@@ -40,32 +40,25 @@ const builderConfig = new BuilderConfig({
 });
 
 
-//create user EOA (secure EVM key)
-app.post("/create-user", (req, res) => {
-
-    // Generate a cryptographically secure private key
-    const privateKey = generatePrivateKey();
-
-    // Convert into an EOA wallet account
-    const account = privateKeyToAccount(privateKey);
-
-    console.log("\n👤 New Embedded Wallet Created:");
-    console.log("   Address:", account.address);
-
-    res.json({
-        polygonEOA: account.address,   // polygon address
-        privateKey                     // store encrypted!
-    });
-});
+//create user EOA (secure EVM key) - DEPRECATED/REMOVED in favor of signature derivation
+// app.post("/create-user", ... );
 
 //deploy safe for user
+import { keccak256 } from "viem";
 
 app.post("/deploy-safe", async (req, res) => {
     try {
-        const { privateKey } = req.body;
+        const { signature } = req.body;
+
+        if (!signature) {
+            return res.status(400).json({ error: "Signature is required" });
+        }
+
+        // Deterministically derive private key from the signature
+        const privateKey = keccak256(signature);
         const user = privateKeyToAccount(privateKey);
 
-        console.log("\n🚀 Deploying Safe for:", user.address);
+        console.log("\n🚀 Deploying Safe for Derived User:", user.address);
 
         // Create wallet client for THIS user
         const userWallet = createWalletClient({
@@ -83,20 +76,38 @@ app.post("/deploy-safe", async (req, res) => {
         );
 
         // Deploy safe
-        const resp = await userClient.deploy();
-        console.log("🟡 SAFE DEPLOY TX SENT");
+        let safeAddress;
+        let txnHash;
 
-        const result = await resp.wait();
-        if (!result) {
-            console.log("❌ Safe deploy failed or timed out");
-            return res.status(500).json({ error: "Timeout" });
+        try {
+            const resp = await userClient.deploy();
+            console.log("🟡 SAFE DEPLOY TX SENT");
+
+            const result = await resp.wait();
+            if (!result) {
+                console.log("❌ Safe deploy failed or timed out");
+                return res.status(500).json({ error: "Timeout" });
+            }
+            console.log("✅ SAFE DEPLOYED:", result.proxyAddress);
+            safeAddress = result.proxyAddress;
+            txnHash = result.transactionHash;
+
+        } catch (error) {
+            if (error.message && error.message.toLowerCase().includes("safe already deployed")) {
+                console.log("ℹ️ Safe already deployed, fetching address...");
+                safeAddress = await userClient.getExpectedSafe();
+                txnHash = "Already Deployed"; // No new tx hash
+                console.log("✅ EXISTING SAFE FOUND:", safeAddress);
+            } else {
+                throw error;
+            }
         }
 
-        console.log("✅ SAFE DEPLOYED:", result.proxyAddress);
-
         res.json({
-            safeAddress: result.proxyAddress,
-            txnHash: result.transactionHash
+            safeAddress,
+            txnHash,
+            derivedEOA: user.address,
+            isExisting: txnHash === "Already Deployed"
         });
 
     } catch (e) {
@@ -142,31 +153,6 @@ app.get("/safe/:safeAddress/balance", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
-
-
-
-//safe status
-
-app.get("/safe/:safeAddress/status", async (req, res) => {
-    try {
-        const { safeAddress } = req.params;
-
-        const code = await provider.getCode(safeAddress);
-
-        res.json({
-            safe: safeAddress,
-            deployed: code !== "0x",
-            bytecode: code
-        });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-
-
-
 
 
 // ------------------------------
