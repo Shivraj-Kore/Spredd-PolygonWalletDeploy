@@ -115,7 +115,7 @@ export default function Home() {
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl mb-2">
             Polymarket Safe Deployer
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-gray-600 border">
             Connect using MetaMask, Sign to Derive Key, and Deploy Safe.
           </p>
         </div>
