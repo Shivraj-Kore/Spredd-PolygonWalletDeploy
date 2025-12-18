@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import SquidBridge from "@/components/SquidBridge";
 
 declare global {
   interface Window {
@@ -113,10 +114,10 @@ export default function Home() {
       <div className="max-w-3xl mx-auto space-y-8">
         <div className="text-center">
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl mb-2">
-            Polymarket Safe Deployer
+            Polymarket Safe Deployer & Bridge
           </h1>
           <p className="text-lg text-gray-600 border">
-            Connect using MetaMask, Sign to Derive Key, and Deploy Safe.
+            Connect using MetaMask, Deploy Safe, and Bridge USDC Cross-Chain.
           </p>
         </div>
 
@@ -269,6 +270,11 @@ export default function Home() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Squid Bridge Section */}
+        <div>
+          <SquidBridge />
         </div>
       </div>
     </div>
